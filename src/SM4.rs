@@ -10,6 +10,7 @@ const CK: [u32; 32] = [
     0xc0c7ced5, 0xdce3eaf1, 0xf8ff060d, 0x141b2229, 0x30373e45, 0x4c535a61, 0x686f767d, 0x848b9299,
     0xa0a7aeb5, 0xbcc3cad1, 0xd8dfe6ed, 0xf4fb0209, 0x10171e25, 0x2c333a41, 0x484f565d, 0x646b7279,
 ];
+
 const BOX: [u8; 256] = [
     0xd6, 0x90, 0xe9, 0xfe, 0xcc, 0xe1, 0x3d, 0xb7, 0x16, 0xb6, 0x14, 0xc2, 0x28, 0xfb, 0x2c, 0x05,
     0x2b, 0x67, 0x9a, 0x76, 0x2a, 0xbe, 0x04, 0xc3, 0xaa, 0x44, 0x13, 0x26, 0x49, 0x86, 0x06, 0x99,
@@ -28,24 +29,24 @@ const BOX: [u8; 256] = [
     0x89, 0x69, 0x97, 0x4a, 0x0c, 0x96, 0x77, 0x7e, 0x65, 0xb9, 0xf1, 0x09, 0xc5, 0x6e, 0xc6, 0x84,
     0x18, 0xf0, 0x7d, 0xec, 0x3a, 0xdc, 0x4d, 0x20, 0x79, 0xee, 0x5f, 0x3e, 0xd7, 0xcb, 0x39, 0x48,
 ];
+
 fn joint_u32(input: [u8; 4]) -> u32 {
-    // 将4个u8拼接成一个u32
     let mut output: u32 = 0;
     for i in 0..4 {
         output |= (input[i] as u32) << (i * 8);
     }
     output
 }
+
 fn joint_u128(input: [u32; 4]) -> u128 {
-    // 将4个u32拼接成一个u128
     let mut output: u128 = 0;
     for i in 0..4 {
         output |= (input[i] as u128) << (i * 32);
     }
     output
 }
+
 fn split_u32(input: u32) -> [u8; 4] {
-    // 将一个u32拆分成4个u8
     let mut output: [u8; 4] = [0; 4];
     for i in 0..4 {
         output[i] = (input >> (i * 8)) as u8;
@@ -53,7 +54,6 @@ fn split_u32(input: u32) -> [u8; 4] {
     output
 }
 fn split_u128(input: u128) -> [u32; 4] {
-    // 将一个u128拆分成4个u32
     let mut output: [u32; 4] = [0; 4];
     for i in 0..4 {
         output[i] = (input >> (i * 32)) as u32;
@@ -65,20 +65,18 @@ fn rotate_left(value: u32, shift: u32) -> u32 {
 }
 impl SM4 {
     pub fn new(key: u128) -> Self {
-        // 构造函数
         let mut sm4 = SM4 { key, rk: [0; 32] };
         sm4.set_rk(key);
         sm4
     }
 
     pub fn set_rk(&mut self, key: u128) {
-        // 生成加密密钥
+        // generate encrypt keys
         let mut k: [u32; 4] = split_u128(key);
-        // 密钥异或
         for i in 0..4 {
             k[i] ^= FK[i];
         }
-        // 生成轮密钥
+        // generate round keys
         for i in 0..32 {
             let sbox_input: u32;
             let sbox_output: u32;
@@ -92,13 +90,13 @@ impl SM4 {
             k[2] = k[3];
             k[3] = self.rk[i];
         }
-        // 输出轮密钥
+        // print
         // for i in 0..32 {
         //     println!("rk[{}] = {:x}", i, self.rk[i]);
         // }
     }
     pub fn box_trans(&self, input: u32) -> u32 {
-        // S盒变换
+        // sbox change
         let output: u32;
         let x: [u8; 4] = split_u32(input);
         let mut y: [u8; 4] = [0; 4];
@@ -109,12 +107,8 @@ impl SM4 {
         output
     }
     pub fn process(&self, input: u128, mode: &str) -> u128 {
-        // 加密/解密
+        // This process contains encryption and decryption
         let mut x: [u32; 4] = split_u128(input);
-        // println!("x0:{:x}", x[0]);
-        // println!("x1:{:x}", x[1]);
-        // println!("x2:{:x}", x[2]);
-        // println!("x3:{:x}", x[3]);
         for i in 0..32 {
             let sbox_input: u32;
             let sbox_output: u32;
@@ -122,7 +116,7 @@ impl SM4 {
             let (y2, y10, y18, y24): (u32, u32, u32, u32);
             sbox_input = x[1] ^ x[2] ^ x[3] ^ self.rk[index];
             sbox_output = self.box_trans(sbox_input);
-            // 循环左移
+            // Cycle left
             (y2, y10, y18, y24) = (
                 rotate_left(sbox_output, 2),
                 rotate_left(sbox_output, 10),
@@ -135,20 +129,14 @@ impl SM4 {
             x[2] = x[3];
             x[3] = temp;
         }
-        // println!("x35:{:x}", x[3]);
-        // println!("x34:{:x}", x[2]);
-        // println!("x33:{:x}", x[1]);
-        // println!("x32:{:x}", x[0]);
         let output: u128 = joint_u128([x[3], x[2], x[1], x[0]]);
         output
     }
     pub fn encrypt(&self, plaintext: u128) -> u128 {
-        // 加密
         let ciphertext: u128 = self.process(plaintext, "encrypt");
         ciphertext
     }
     pub fn decrypt(&self, ciphertext: u128) -> u128 {
-        // 解密
         let plaintext: u128 = self.process(ciphertext, "decrypt");
         plaintext
     }
