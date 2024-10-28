@@ -1,6 +1,6 @@
 # SM4 Algorithm in one file
 SM4 algorithm implementation in one file, written in Rust.
-# How to run
+## How to run
 ```bash
 # Install deps
 cargo install 
